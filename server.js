@@ -20,7 +20,13 @@ const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "uploads";
 
 // Ensure upload directory exists
-await fs.mkdir(UPLOAD_DIR, { recursive: true });
+try {
+  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  console.log(`Uploads directory ensured at ${UPLOAD_DIR}`);
+} catch (err) {
+  console.error(`Error creating uploads directory ${UPLOAD_DIR}:`, err);
+  process.exit(1); // Kritik hata, uygulamayı durdur
+}
 
 // EJS setup
 app.set("view engine", "ejs");
