@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resimli Test Hazırlama</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .dropzone {
+      border: 2px dashed #4b5563;
+      transition: all 0.3s ease;
+    }
+    .dropzone.dragover {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .image-preview {
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .image-container {
+      position: relative;
+      transition: transform 0.2s;
+    }
+    .image-container:hover .delete-btn {
+      display: block;
+    }
+    .delete-btn {
+      display: none;
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ef4444;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      text-align: center;
+      line-height: 24px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .image-container.dragging {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="container mx-auto p-6 max-w-2xl">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Resimli Test Hazırlama</h1>
+    <form action="/generate" method="post" enctype="multipart/form-data" class="bg-white shadow-lg rounded-lg p-6">
+      <div class="mb-6">
+        <label for="testTitle" class="block text-sm font-medium text-gray-700">Test Başlığı</label>
+        <input type="text" id="testTitle" name="testTitle" required
+               class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div class="mb-6">
+        <label for="schoolName" class="block text-sm font-medium text-gray-700">Okul Adı</label>
+        <input type="text" id="schoolName" name="schoolName"
+               class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div class="mb-6">
+        <label for="description" class="block text-sm font-medium text-gray-700">Açıklama</label>
+        <textarea id="description" name="description" rows="4"
+                  class="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Soru Resimlerini Yükle</label>
+        <div id="dropzone" class="dropzone p-6 text-center rounded-md">
+          <p class="text-gray-500">Resimleri buraya sürükleyin veya tıklayın</p>
+          <input type="file" id="questionImages" name="questionImages" multiple accept="image/*" class="hidden">
+        </div>
+      </div>
+
+      <div id="imagePreview" class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6"></div>
+
+      <button type="submit"
+              class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition">
+        PDF Oluştur
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('questionImages');
+    const imagePreview = document.getElementById('imagePreview');
+    let fileList = [];
+
+    // Trigger file input click when dropzone is clicked
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    // Handle drag and drop for file upload
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+      updateFileList(files);
+      updateFileInput();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', () => {
+      const files = Array.from(fileInput.files).filter(file => file.type.startsWith('image/'));
+      updateFileList(files);
+      updateFileInput();
+    });
+
+    // Update file list and display previews
+    function updateFileList(newFiles) {
+      fileList = [...fileList, ...newFiles];
+      renderPreviews();
+    }
+
+    // Render image previews with delete buttons
+    function renderPreviews() {
+      imagePreview.innerHTML = '';
+      fileList.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imgContainer = document.createElement('div');
+          imgContainer.className = 'image-container';
+          imgContainer.draggable = true;
+          imgContainer.dataset.index = index;
+
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.className = 'image-preview w-full h-32';
+
+          const deleteBtn = document.createElement('span');
+          deleteBtn.className = 'delete-btn';
+          deleteBtn.innerHTML = '×';
+          deleteBtn.onclick = () => removeImage(index);
+
+          imgContainer.appendChild(img);
+          imgContainer.appendChild(deleteBtn);
+          imagePreview.appendChild(imgContainer);
+
+          // Drag and drop for reordering
+          imgContainer.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', index);
+            imgContainer.classList.add('dragging');
+          });
+
+          imgContainer.addEventListener('dragend', () => {
+            imgContainer.classList.remove('dragging');
+          });
+
+          imgContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+          });
+
+          imgContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const targetIndex = index;
+            if (draggedIndex !== targetIndex) {
+              const [draggedFile] = fileList.splice(draggedIndex, 1);
+              fileList.splice(targetIndex, 0, draggedFile);
+              renderPreviews();
+              updateFileInput();
+            }
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Remove image from list
+    function removeImage(index) {
+      fileList.splice(index, 1);
+      renderPreviews();
+      updateFileInput();
+    }
+
+    // Update file input with current fileList
+    function updateFileInput() {
+      const dataTransfer = new DataTransfer();
+      fileList.forEach(file => dataTransfer.items.add(file));
+      fileInput.files = dataTransfer.files;
+    }
+  </script>
+</body>
+</html>
