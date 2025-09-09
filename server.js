@@ -4,6 +4,7 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import ejs from "ejs";
 dotenv.config();
 
 
